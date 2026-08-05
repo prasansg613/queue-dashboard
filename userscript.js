@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Queue Dashboard - Auto Capture & Sync to GitHub
 // @namespace    queue-dashboard
-// @version      2.0
-// @description  Captures queue counts from Approvals, SIM, and Salesforce and syncs to GitHub
+// @version      2.1
+// @description  Captures queue counts and syncs to GitHub
 // @match        https://approvals.amazon.com/Approvals/pending*
 // @match        https://sim.amazon.com/issues/search*
 // @match        https://amazonshipping.lightning.force.com/lightning/r/Report/00Oat000000FchiEAC/*
@@ -10,351 +10,202 @@
 // @match        https://amazonshipping.lightning.force.com/lightning/r/Report/00ODo000002LVNHMA4/*
 // @match        https://amazonshipping.lightning.force.com/reports/lightningReportApp.app*
 // @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
 // @connect      api.github.com
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // ====== CONFIGURATION ======
     const GITHUB_TOKEN = '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';
     const GITHUB_OWNER = 'prasansg613';
     const GITHUB_REPO = 'queue-dashboard';
     const DATA_FILE = 'data.json';
-    const API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}`;
-    // ===========================
+    const API_URL = 'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/' + DATA_FILE;
 
-    // Get today's date
     function getToday() {
         return new Date().toISOString().split('T')[0];
     }
 
-    // Show notification on page
-    function showNotification(message, isError = false) {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: ${isError ? '#ff6b6b' : '#4ecdc4'};
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            z-index: 99999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: opacity 0.3s ease;
-            max-width: 400px;
-        `;
+    function showNotification(message, isError) {
+        var notification = document.createElement('div');
+        notification.style.cssText = 'position:fixed;top:10px;right:10px;background:' + (isError ? '#ff6b6b' : '#4ecdc4') + ';color:white;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:bold;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:400px;';
         notification.textContent = message;
         document.body.appendChild(notification);
-
-        setTimeout(() => {
+        setTimeout(function() {
             notification.style.opacity = '0';
-            setTimeout(() => notification.remove(), 300);
+            setTimeout(function() { notification.remove(); }, 300);
         }, 4000);
     }
 
-    // Fetch current data.json from GitHub using GM_xmlhttpRequest (bypasses CORS)
-    function fetchGitHubData() {
-        return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url: API_URL,
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                },
-                onload: function(response) {
-                    if (response.status === 404) {
-                        resolve({ data: [], sha: null });
-                        return;
-                    }
-                    if (response.status !== 200) {
-                        console.error('[Queue Dashboard] GitHub API error:', response.status);
-                        resolve({ data: [], sha: null });
-                        return;
-                    }
-                    try {
-                        const fileInfo = JSON.parse(response.responseText);
-                        const content = atob(fileInfo.content);
-                        const data = JSON.parse(content);
-                        resolve({ data, sha: fileInfo.sha });
-                    } catch (e) {
-                        console.error('[Queue Dashboard] Parse error:', e);
-                        resolve({ data: [], sha: null });
-                    }
-                },
-                onerror: function(error) {
-                    console.error('[Queue Dashboard] Request error:', error);
-                    resolve({ data: [], sha: null });
-                }
-            });
-        });
-    }
-
-    // Push updated data to GitHub using GM_xmlhttpRequest (bypasses CORS)
-    function pushToGitHub(data, sha) {
-        return new Promise((resolve) => {
-            const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-            const body = {
-                message: `Update queue data - ${getToday()}`,
-                content: content
-            };
-
-            if (sha) {
-                body.sha = sha;
-            }
-
-            GM_xmlhttpRequest({
-                method: 'PUT',
-                url: API_URL,
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                data: JSON.stringify(body),
-                onload: function(response) {
-                    if (response.status === 200 || response.status === 201) {
-                        resolve(true);
-                    } else {
-                        console.error('[Queue Dashboard] Push error:', response.status, response.responseText);
-                        showNotification(`Error saving to GitHub: HTTP ${response.status}`, true);
-                        resolve(false);
-                    }
-                },
-                onerror: function(error) {
-                    console.error('[Queue Dashboard] Push request error:', error);
-                    showNotification(`Error saving to GitHub: Network error`, true);
-                    resolve(false);
-                }
-            });
-        });
-    }
-
-    // Save a captured value to GitHub
-    async function saveCapturedValue(field, value) {
-        const today = getToday();
-
-        // Fetch current data from GitHub
-        const { data, sha } = await fetchGitHubData();
-
-        // Find or create today's entry
-        let todayIndex = data.findIndex(entry => entry.date === today);
-
-        if (todayIndex === -1) {
-            // Create new entry for today
-            data.push({
-                date: today,
-                pendingApproval: 0,
-                sim: 0,
-                creditAutomation: 0,
-                manualReviews: 0,
-                s360Update: 0,
-                updatedBy: 'userscript',
-                timestamp: new Date().toISOString()
-            });
-            todayIndex = data.length - 1;
-        }
-
-        // Update the specific field
-        data[todayIndex][field] = value;
-        data[todayIndex].timestamp = new Date().toISOString();
-        data[todayIndex].updatedBy = 'userscript';
-
-        // Push to GitHub
-        const success = await pushToGitHub(data, sha);
-
-        if (success) {
-            const fieldNames = {
-                pendingApproval: 'Pending Approval',
-                sim: 'SIM',
-                creditAutomation: 'Credit Automation',
-                manualReviews: 'Manual Reviews',
-                s360Update: 'S360 Update'
-            };
-            showNotification(`✓ ${fieldNames[field]} = ${value} → Saved to GitHub!`);
-        }
-    }
-
-    // ========== APPROVALS (approvals.amazon.com) ==========
-    function captureApprovals() {
-        setTimeout(() => {
-            // Look for "Pending My Approval" tab with count
-            const allTabs = document.querySelectorAll('.awsui-tabs-tab, [role="presentation"]');
-            for (const tab of allTabs) {
-                const text = tab.textContent;
-                if (text.includes('Pending My Approval')) {
-                    const match = text.match(/Pending My Approval\s*(\d+)/);
-                    if (match) {
-                        const count = parseInt(match[1]);
-                        saveCapturedValue('pendingApproval', count);
-                        return;
-                    }
-                    // Try just finding any number after the text
-                    const numMatch = text.match(/(\d+)/);
-                    if (numMatch) {
-                        const count = parseInt(numMatch[1]);
-                        saveCapturedValue('pendingApproval', count);
-                        return;
-                    }
-                }
-            }
-
-            // Fallback: look in inner HTML for the specific structure
-            const pending = document.querySelector('[data-testid="PENDING_NOW"]');
-            if (pending) {
-                const numMatch = pending.textContent.match(/(\d+)/);
-                if (numMatch) {
-                    saveCapturedValue('pendingApproval', parseInt(numMatch[1]));
+    function fetchGitHubData(callback) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: API_URL,
+            headers: {
+                'Authorization': 'token ' + GITHUB_TOKEN,
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            onload: function(response) {
+                if (response.status === 404) {
+                    callback([], null);
                     return;
                 }
+                if (response.status !== 200) {
+                    showNotification('GitHub API error: ' + response.status, true);
+                    callback([], null);
+                    return;
+                }
+                try {
+                    var fileInfo = JSON.parse(response.responseText);
+                    var content = atob(fileInfo.content);
+                    var data = JSON.parse(content);
+                    callback(data, fileInfo.sha);
+                } catch (e) {
+                    showNotification('Error parsing GitHub data', true);
+                    callback([], null);
+                }
+            },
+            onerror: function() {
+                showNotification('Network error connecting to GitHub', true);
+                callback([], null);
             }
+        });
+    }
 
+    function pushToGitHub(data, sha, callback) {
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+        var body = { message: 'Update queue data - ' + getToday(), content: content };
+        if (sha) { body.sha = sha; }
+
+        GM_xmlhttpRequest({
+            method: 'PUT',
+            url: API_URL,
+            headers: {
+                'Authorization': 'token ' + GITHUB_TOKEN,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(body),
+            onload: function(response) {
+                if (response.status === 200 || response.status === 201) {
+                    callback(true);
+                } else {
+                    showNotification('Error saving: HTTP ' + response.status, true);
+                    callback(false);
+                }
+            },
+            onerror: function() {
+                showNotification('Network error saving to GitHub', true);
+                callback(false);
+            }
+        });
+    }
+
+    function saveCapturedValue(field, value) {
+        var today = getToday();
+        var fieldNames = { pendingApproval:'Pending Approval', sim:'SIM', creditAutomation:'Credit Automation', manualReviews:'Manual Reviews', s360Update:'S360 Update' };
+
+        showNotification('Capturing ' + fieldNames[field] + ' = ' + value + '...');
+
+        fetchGitHubData(function(data, sha) {
+            var todayIndex = -1;
+            for (var i = 0; i < data.length; i++) {
+                if (data[i].date === today) { todayIndex = i; break; }
+            }
+            if (todayIndex === -1) {
+                data.push({ date:today, pendingApproval:0, sim:0, creditAutomation:0, manualReviews:0, s360Update:0, updatedBy:'userscript', timestamp:'' });
+                todayIndex = data.length - 1;
+            }
+            data[todayIndex][field] = value;
+            data[todayIndex].timestamp = new Date().toISOString();
+            data[todayIndex].updatedBy = 'userscript';
+
+            pushToGitHub(data, sha, function(success) {
+                if (success) {
+                    showNotification('✓ ' + fieldNames[field] + ' = ' + value + ' → Saved to GitHub!');
+                }
+            });
+        });
+    }
+
+    // ========== APPROVALS ==========
+    function captureApprovals() {
+        setTimeout(function() {
+            var pending = document.querySelector('[data-testid="PENDING_NOW"]');
+            if (pending) {
+                var match = pending.textContent.match(/(\d+)/);
+                if (match) { saveCapturedValue('pendingApproval', parseInt(match[1])); return; }
+            }
+            var tabs = document.querySelectorAll('.awsui-tabs-tab');
+            for (var i = 0; i < tabs.length; i++) {
+                if (tabs[i].textContent.indexOf('Pending My Approval') !== -1) {
+                    var m = tabs[i].textContent.match(/(\d+)/);
+                    if (m) { saveCapturedValue('pendingApproval', parseInt(m[1])); return; }
+                }
+            }
             showNotification('Could not find Pending Approval count', true);
         }, 5000);
     }
 
-    // ========== SIM (sim.amazon.com) ==========
+    // ========== SIM ==========
     function captureSIM() {
-        setTimeout(() => {
-            // Look for result count in various locations
-            const countSelectors = [
-                '.search-result-count',
-                '.results-count',
-                '.issue-count',
-                '[data-test="search-result-count"]',
-                '.search-header-count',
-                '.result-count',
-                '.search-results-header'
-            ];
+        setTimeout(function() {
+            var body = document.body.innerText;
+            var match = body.match(/of\s+(\d+)\s+issue/i) || body.match(/(\d+)\s+results/i) || body.match(/(\d+)\s+issues/i);
+            if (match) { saveCapturedValue('sim', parseInt(match[1])); return; }
 
-            for (const selector of countSelectors) {
-                const el = document.querySelector(selector);
-                if (el) {
-                    const match = el.textContent.match(/(\d+)/);
-                    if (match) {
-                        saveCapturedValue('sim', parseInt(match[1]));
-                        return;
-                    }
-                }
-            }
+            var rows = document.querySelectorAll('.issue-list-item, .search-result-item, .document-list-item, tr.issue-row');
+            if (rows.length > 0) { saveCapturedValue('sim', rows.length); return; }
 
-            // Look for pagination info like "1-25 of 42"
-            const body = document.body.innerText;
-            const paginationMatch = body.match(/of\s+(\d+)\s+issue/i) ||
-                                     body.match(/(\d+)\s+results?/i) ||
-                                     body.match(/(\d+)\s+issues?\s+found/i);
-            if (paginationMatch) {
-                saveCapturedValue('sim', parseInt(paginationMatch[1]));
-                return;
-            }
-
-            // Count visible issue rows
-            const issueRows = document.querySelectorAll(
-                '.issue-list-item, .search-result-item, tr.issue-row, .document-list-item'
-            );
-            if (issueRows.length > 0) {
-                saveCapturedValue('sim', issueRows.length);
-                return;
-            }
-
-            showNotification('Could not find SIM count. Try refreshing the page.', true);
+            showNotification('Could not find SIM count', true);
         }, 6000);
     }
 
-    // ========== SALESFORCE REPORTS ==========
+    // ========== SALESFORCE ==========
     function captureSalesforceReport() {
-        setTimeout(() => {
-            const url = window.location.href;
+        setTimeout(function() {
+            var url = window.location.href;
+            var field = '';
+            if (url.indexOf('00Oat000000FchiEAC') !== -1) field = 'creditAutomation';
+            else if (url.indexOf('00Oat000001DclFEAS') !== -1) field = 'manualReviews';
+            else if (url.indexOf('00ODo000002LVNHMA4') !== -1) field = 's360Update';
 
-            // Determine which report this is
-            let field = '';
-            if (url.includes('00Oat000000FchiEAC')) {
-                field = 'creditAutomation';
-            } else if (url.includes('00Oat000001DclFEAS')) {
-                field = 'manualReviews';
-            } else if (url.includes('00ODo000002LVNHMA4')) {
-                field = 's360Update';
-            }
-
-            // Also check reportId parameter
             if (!field) {
-                const params = new URLSearchParams(window.location.search);
-                const reportId = params.get('reportId');
+                var params = new URLSearchParams(window.location.search);
+                var reportId = params.get('reportId');
                 if (reportId === '00Oat000000FchiEAC') field = 'creditAutomation';
                 else if (reportId === '00Oat000001DclFEAS') field = 'manualReviews';
                 else if (reportId === '00ODo000002LVNHMA4') field = 's360Update';
             }
+            if (!field) return;
 
-            if (!field) {
-                console.log('[Queue Dashboard] Unknown Salesforce report');
-                return;
+            var allText = document.body.innerText;
+            var m;
+
+            m = allText.match(/Total\s*Records[:\s]*(\d[\d,]*)/i);
+            if (m) { saveCapturedValue(field, parseInt(m[1].replace(/,/g,''))); return; }
+
+            m = allText.match(/(\d[\d,]*)\s*rows?/i);
+            if (m) { saveCapturedValue(field, parseInt(m[1].replace(/,/g,''))); return; }
+
+            m = allText.match(/(\d[\d,]*)\s*records?/i);
+            if (m) { saveCapturedValue(field, parseInt(m[1].replace(/,/g,''))); return; }
+
+            if (allText.indexOf('No data') !== -1 || allText.indexOf('no results') !== -1) {
+                saveCapturedValue(field, 0); return;
             }
 
-            // Try to find the record count
-            const allText = document.body.innerText;
+            var tableRows = document.querySelectorAll('table tbody tr');
+            if (tableRows.length > 0) { saveCapturedValue(field, tableRows.length); return; }
 
-            // Look for "Total Records" or "Total Records: 282" pattern (shown in report header)
-            const totalRecordsMatch = allText.match(/Total\s*Records[:\s]*(\d[\d,]*)/i);
-            if (totalRecordsMatch) {
-                const count = parseInt(totalRecordsMatch[1].replace(/,/g, ''));
-                saveCapturedValue(field, count);
-                return;
-            }
-
-            // Look for "X rows" pattern
-            const rowMatch = allText.match(/(\d[\d,]*)\s*rows?/i);
-            if (rowMatch) {
-                saveCapturedValue(field, parseInt(rowMatch[1].replace(/,/g, '')));
-                return;
-            }
-
-            // Look for "Grand Totals (X records)" or "X records"
-            const recordMatch = allText.match(/(\d[\d,]*)\s*records?/i);
-            if (recordMatch) {
-                saveCapturedValue(field, parseInt(recordMatch[1].replace(/,/g, '')));
-                return;
-            }
-
-            // Look for count in report header like "X items"
-            const headerMatch = allText.match(/(\d[\d,]*)\s*items?/i);
-            if (headerMatch) {
-                saveCapturedValue(field, parseInt(headerMatch[1].replace(/,/g, '')));
-                return;
-            }
-
-            // Check if "No data" is shown
-            if (allText.includes('No data') || allText.includes('no results') ||
-                allText.includes('No records')) {
-                saveCapturedValue(field, 0);
-                return;
-            }
-
-            // Count table rows as fallback
-            const tableRows = document.querySelectorAll('table tbody tr, .slds-table tbody tr');
-            if (tableRows.length > 0) {
-                saveCapturedValue(field, tableRows.length);
-                return;
-            }
-
-            showNotification(`Could not find count for ${field}. Try refreshing.`, true);
-        }, 10000); // Salesforce needs more time to load
+            showNotification('Could not find count for report', true);
+        }, 10000);
     }
 
-    // ========== ROUTE TO CORRECT HANDLER ==========
-    const currentURL = window.location.href;
-
-    if (currentURL.includes('approvals.amazon.com')) {
-        captureApprovals();
-    } else if (currentURL.includes('sim.amazon.com')) {
-        captureSIM();
-    } else if (currentURL.includes('amazonshipping.lightning.force.com')) {
-        captureSalesforceReport();
-    }
+    // ========== ROUTE ==========
+    var url = window.location.href;
+    if (url.indexOf('approvals.amazon.com') !== -1) captureApprovals();
+    else if (url.indexOf('sim.amazon.com') !== -1) captureSIM();
+    else if (url.indexOf('amazonshipping.lightning.force.com') !== -1) captureSalesforceReport();
 
 })();
