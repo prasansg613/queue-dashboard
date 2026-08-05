@@ -58,39 +58,48 @@
         }, 4000);
     }
 
-    // Fetch current data.json from GitHub
-    async function fetchGitHubData() {
-        try {
-            const response = await fetch(API_URL, {
+    // Fetch current data.json from GitHub using GM_xmlhttpRequest (bypasses CORS)
+    function fetchGitHubData() {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: API_URL,
                 headers: {
                     'Authorization': `token ${GITHUB_TOKEN}`,
                     'Accept': 'application/vnd.github.v3+json'
+                },
+                onload: function(response) {
+                    if (response.status === 404) {
+                        resolve({ data: [], sha: null });
+                        return;
+                    }
+                    if (response.status !== 200) {
+                        console.error('[Queue Dashboard] GitHub API error:', response.status);
+                        resolve({ data: [], sha: null });
+                        return;
+                    }
+                    try {
+                        const fileInfo = JSON.parse(response.responseText);
+                        const content = atob(fileInfo.content);
+                        const data = JSON.parse(content);
+                        resolve({ data, sha: fileInfo.sha });
+                    } catch (e) {
+                        console.error('[Queue Dashboard] Parse error:', e);
+                        resolve({ data: [], sha: null });
+                    }
+                },
+                onerror: function(error) {
+                    console.error('[Queue Dashboard] Request error:', error);
+                    resolve({ data: [], sha: null });
                 }
             });
-
-            if (response.status === 404) {
-                // File doesn't exist yet, return empty
-                return { data: [], sha: null };
-            }
-
-            if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status}`);
-            }
-
-            const fileInfo = await response.json();
-            const content = atob(fileInfo.content);
-            const data = JSON.parse(content);
-            return { data, sha: fileInfo.sha };
-        } catch (error) {
-            console.error('[Queue Dashboard] Error fetching GitHub data:', error);
-            return { data: [], sha: null };
-        }
+        });
     }
 
-    // Push updated data to GitHub
-    async function pushToGitHub(data, sha) {
-        try {
-            const content = btoa(JSON.stringify(data, null, 2));
+    // Push updated data to GitHub using GM_xmlhttpRequest (bypasses CORS)
+    function pushToGitHub(data, sha) {
+        return new Promise((resolve) => {
+            const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
             const body = {
                 message: `Update queue data - ${getToday()}`,
                 content: content
@@ -100,27 +109,31 @@
                 body.sha = sha;
             }
 
-            const response = await fetch(API_URL, {
+            GM_xmlhttpRequest({
                 method: 'PUT',
+                url: API_URL,
                 headers: {
                     'Authorization': `token ${GITHUB_TOKEN}`,
                     'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(body)
+                data: JSON.stringify(body),
+                onload: function(response) {
+                    if (response.status === 200 || response.status === 201) {
+                        resolve(true);
+                    } else {
+                        console.error('[Queue Dashboard] Push error:', response.status, response.responseText);
+                        showNotification(`Error saving to GitHub: HTTP ${response.status}`, true);
+                        resolve(false);
+                    }
+                },
+                onerror: function(error) {
+                    console.error('[Queue Dashboard] Push request error:', error);
+                    showNotification(`Error saving to GitHub: Network error`, true);
+                    resolve(false);
+                }
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || `HTTP ${response.status}`);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('[Queue Dashboard] Error pushing to GitHub:', error);
-            showNotification(`Error saving to GitHub: ${error.message}`, true);
-            return false;
-        }
+        });
     }
 
     // Save a captured value to GitHub
