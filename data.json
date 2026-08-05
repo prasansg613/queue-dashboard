@@ -1,12 +1,12 @@
 [
   {
     "date": "2026-08-05",
-    "pendingApproval": 0,
+    "pendingApproval": 1,
     "sim": 0,
     "creditAutomation": 1,
     "manualReviews": 0,
     "s360Update": 282,
     "updatedBy": "userscript",
-    "timestamp": "2026-08-05T12:57:06.790Z"
+    "timestamp": "2026-08-05T12:57:26.084Z"
   }
 ]
