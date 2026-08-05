@@ -16,7 +16,7 @@
 (function() {
     'use strict';
 
-    const GITHUB_TOKEN = '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';
+ const GITHUB_TOKEN = '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';
     const GITHUB_OWNER = 'prasansg613';
     const GITHUB_REPO = 'queue-dashboard';
     const DATA_FILE = 'data.json';
