@@ -1,67 +1,53 @@
 // ==UserScript==
-// @name         Queue Dashboard - Auto Capture
+// @name         Queue Dashboard - Auto Capture & Sync to GitHub
 // @namespace    queue-dashboard
-// @version      1.0
-// @description  Automatically captures queue counts from Approvals, SIM, and Salesforce reports
+// @version      2.0
+// @description  Captures queue counts from Approvals, SIM, and Salesforce and syncs to GitHub
 // @match        https://approvals.amazon.com/Approvals/pending*
 // @match        https://sim.amazon.com/issues/search*
 // @match        https://amazonshipping.lightning.force.com/lightning/r/Report/00Oat000000FchiEAC/*
 // @match        https://amazonshipping.lightning.force.com/lightning/r/Report/00Oat000001DclFEAS/*
 // @match        https://amazonshipping.lightning.force.com/lightning/r/Report/00ODo000002LVNHMA4/*
 // @match        https://amazonshipping.lightning.force.com/reports/lightningReportApp.app*
-// @grant        none
-// @run-at       document-idle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @connect      api.github.com
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const STORAGE_KEY = 'queueDashboard_autoCapture';
+    // ====== CONFIGURATION ======
+    const GITHUB_TOKEN = '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';
+    const GITHUB_OWNER = 'prasansg613';
+    const GITHUB_REPO = 'queue-dashboard';
+    const DATA_FILE = 'data.json';
+    const API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}`;
+    // ===========================
 
-    // Get current captured data or create fresh
-    function getCapturedData() {
-        const today = new Date().toISOString().split('T')[0];
-        const stored = localStorage.getItem(STORAGE_KEY);
-        let data = stored ? JSON.parse(stored) : {};
-
-        // Reset if it's a new day
-        if (data.date !== today) {
-            data = {
-                date: today,
-                pendingApproval: 0,
-                sim: 0,
-                creditAutomation: 0,
-                manualReviews: 0,
-                s360Update: 0,
-                timestamp: null
-            };
-        }
-        return data;
+    // Get today's date
+    function getToday() {
+        return new Date().toISOString().split('T')[0];
     }
 
-    // Save captured data
-    function saveCapturedData(data) {
-        data.timestamp = new Date().toISOString();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        console.log('[Queue Dashboard] Data saved:', data);
-    }
-
-    // Show a small notification on the page
-    function showNotification(message) {
+    // Show notification on page
+    function showNotification(message, isError = false) {
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed;
             top: 10px;
             right: 10px;
-            background: #4ecdc4;
+            background: ${isError ? '#ff6b6b' : '#4ecdc4'};
             color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 8px;
             font-size: 14px;
             font-weight: bold;
             z-index: 99999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             transition: opacity 0.3s ease;
+            max-width: 400px;
         `;
         notification.textContent = message;
         document.body.appendChild(notification);
@@ -69,62 +55,169 @@
         setTimeout(() => {
             notification.style.opacity = '0';
             setTimeout(() => notification.remove(), 300);
-        }, 3000);
+        }, 4000);
+    }
+
+    // Fetch current data.json from GitHub
+    async function fetchGitHubData() {
+        try {
+            const response = await fetch(API_URL, {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.status === 404) {
+                // File doesn't exist yet, return empty
+                return { data: [], sha: null };
+            }
+
+            if (!response.ok) {
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+
+            const fileInfo = await response.json();
+            const content = atob(fileInfo.content);
+            const data = JSON.parse(content);
+            return { data, sha: fileInfo.sha };
+        } catch (error) {
+            console.error('[Queue Dashboard] Error fetching GitHub data:', error);
+            return { data: [], sha: null };
+        }
+    }
+
+    // Push updated data to GitHub
+    async function pushToGitHub(data, sha) {
+        try {
+            const content = btoa(JSON.stringify(data, null, 2));
+            const body = {
+                message: `Update queue data - ${getToday()}`,
+                content: content
+            };
+
+            if (sha) {
+                body.sha = sha;
+            }
+
+            const response = await fetch(API_URL, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('[Queue Dashboard] Error pushing to GitHub:', error);
+            showNotification(`Error saving to GitHub: ${error.message}`, true);
+            return false;
+        }
+    }
+
+    // Save a captured value to GitHub
+    async function saveCapturedValue(field, value) {
+        const today = getToday();
+
+        // Fetch current data from GitHub
+        const { data, sha } = await fetchGitHubData();
+
+        // Find or create today's entry
+        let todayIndex = data.findIndex(entry => entry.date === today);
+
+        if (todayIndex === -1) {
+            // Create new entry for today
+            data.push({
+                date: today,
+                pendingApproval: 0,
+                sim: 0,
+                creditAutomation: 0,
+                manualReviews: 0,
+                s360Update: 0,
+                updatedBy: 'userscript',
+                timestamp: new Date().toISOString()
+            });
+            todayIndex = data.length - 1;
+        }
+
+        // Update the specific field
+        data[todayIndex][field] = value;
+        data[todayIndex].timestamp = new Date().toISOString();
+        data[todayIndex].updatedBy = 'userscript';
+
+        // Push to GitHub
+        const success = await pushToGitHub(data, sha);
+
+        if (success) {
+            const fieldNames = {
+                pendingApproval: 'Pending Approval',
+                sim: 'SIM',
+                creditAutomation: 'Credit Automation',
+                manualReviews: 'Manual Reviews',
+                s360Update: 'S360 Update'
+            };
+            showNotification(`✓ ${fieldNames[field]} = ${value} → Saved to GitHub!`);
+        }
     }
 
     // ========== APPROVALS (approvals.amazon.com) ==========
     function captureApprovals() {
-        // Wait for page to fully load
         setTimeout(() => {
             // Look for "Pending My Approval" tab with count
-            const pendingTab = document.querySelector('[data-testid="PENDING_NOW"]');
-            if (pendingTab) {
-                const countDiv = pendingTab.querySelector('div[style*="color: red"], div:not([style])');
-                // Try to find the number in the tab
-                const tabText = pendingTab.textContent;
-                const match = tabText.match(/Pending My Approval\s*(\d+)/);
-                if (match) {
-                    const count = parseInt(match[1]);
-                    const data = getCapturedData();
-                    data.pendingApproval = count;
-                    saveCapturedData(data);
-                    showNotification(`Queue Dashboard: Pending Approval = ${count}`);
-                    return;
-                }
-            }
-
-            // Fallback: search all tab content
-            const allTabs = document.querySelectorAll('.awsui-tabs-tab');
+            const allTabs = document.querySelectorAll('.awsui-tabs-tab, [role="presentation"]');
             for (const tab of allTabs) {
                 const text = tab.textContent;
                 if (text.includes('Pending My Approval')) {
-                    const match = text.match(/(\d+)/);
+                    const match = text.match(/Pending My Approval\s*(\d+)/);
                     if (match) {
                         const count = parseInt(match[1]);
-                        const data = getCapturedData();
-                        data.pendingApproval = count;
-                        saveCapturedData(data);
-                        showNotification(`Queue Dashboard: Pending Approval = ${count}`);
+                        saveCapturedValue('pendingApproval', count);
+                        return;
+                    }
+                    // Try just finding any number after the text
+                    const numMatch = text.match(/(\d+)/);
+                    if (numMatch) {
+                        const count = parseInt(numMatch[1]);
+                        saveCapturedValue('pendingApproval', count);
                         return;
                     }
                 }
             }
 
-            console.log('[Queue Dashboard] Could not find Pending Approval count');
-        }, 3000);
+            // Fallback: look in inner HTML for the specific structure
+            const pending = document.querySelector('[data-testid="PENDING_NOW"]');
+            if (pending) {
+                const numMatch = pending.textContent.match(/(\d+)/);
+                if (numMatch) {
+                    saveCapturedValue('pendingApproval', parseInt(numMatch[1]));
+                    return;
+                }
+            }
+
+            showNotification('Could not find Pending Approval count', true);
+        }, 5000);
     }
 
     // ========== SIM (sim.amazon.com) ==========
     function captureSIM() {
         setTimeout(() => {
-            // Look for the result count in the search results
-            // SIM typically shows "X issues" or a count in the search header
+            // Look for result count in various locations
             const countSelectors = [
                 '.search-result-count',
                 '.results-count',
                 '.issue-count',
                 '[data-test="search-result-count"]',
-                '.search-header-count'
+                '.search-header-count',
+                '.result-count',
+                '.search-results-header'
             ];
 
             for (const selector of countSelectors) {
@@ -132,40 +225,33 @@
                 if (el) {
                     const match = el.textContent.match(/(\d+)/);
                     if (match) {
-                        const count = parseInt(match[1]);
-                        const data = getCapturedData();
-                        data.sim = count;
-                        saveCapturedData(data);
-                        showNotification(`Queue Dashboard: SIM = ${count}`);
+                        saveCapturedValue('sim', parseInt(match[1]));
                         return;
                     }
                 }
             }
 
-            // Fallback: count the issue rows in the list
-            const issueRows = document.querySelectorAll('.issue-list-item, .search-result-item, tr.issue-row');
-            if (issueRows.length > 0) {
-                const data = getCapturedData();
-                data.sim = issueRows.length;
-                saveCapturedData(data);
-                showNotification(`Queue Dashboard: SIM = ${issueRows.length}`);
-                return;
-            }
-
-            // Another fallback: look for text like "1-25 of 42"
-            const body = document.body.textContent;
-            const paginationMatch = body.match(/of\s+(\d+)\s+issue/i);
+            // Look for pagination info like "1-25 of 42"
+            const body = document.body.innerText;
+            const paginationMatch = body.match(/of\s+(\d+)\s+issue/i) ||
+                                     body.match(/(\d+)\s+results?/i) ||
+                                     body.match(/(\d+)\s+issues?\s+found/i);
             if (paginationMatch) {
-                const count = parseInt(paginationMatch[1]);
-                const data = getCapturedData();
-                data.sim = count;
-                saveCapturedData(data);
-                showNotification(`Queue Dashboard: SIM = ${count}`);
+                saveCapturedValue('sim', parseInt(paginationMatch[1]));
                 return;
             }
 
-            console.log('[Queue Dashboard] Could not find SIM count. Please check the page.');
-        }, 5000);
+            // Count visible issue rows
+            const issueRows = document.querySelectorAll(
+                '.issue-list-item, .search-result-item, tr.issue-row, .document-list-item'
+            );
+            if (issueRows.length > 0) {
+                saveCapturedValue('sim', issueRows.length);
+                return;
+            }
+
+            showNotification('Could not find SIM count. Try refreshing the page.', true);
+        }, 6000);
     }
 
     // ========== SALESFORCE REPORTS ==========
@@ -197,70 +283,46 @@
                 return;
             }
 
-            // Try to find the record count in the report
-            // Salesforce reports show "X rows" or "Grand Totals (X records)"
-            const countSelectors = [
-                '.reportOutput .grandTotal',
-                '.report-grand-total',
-                '[data-aura-class="reportOutput"] .rowCount',
-                '.slds-text-body--small',
-                '.test-id__section-header-count',
-                '.report-output-header'
-            ];
-
-            for (const selector of countSelectors) {
-                const els = document.querySelectorAll(selector);
-                for (const el of els) {
-                    const match = el.textContent.match(/(\d+)\s*(?:row|record|item)/i);
-                    if (match) {
-                        const count = parseInt(match[1]);
-                        const data = getCapturedData();
-                        data[field] = count;
-                        saveCapturedData(data);
-                        const fieldNames = {
-                            creditAutomation: 'Credit Automation',
-                            manualReviews: 'Manual Reviews',
-                            s360Update: 'S360 Update'
-                        };
-                        showNotification(`Queue Dashboard: ${fieldNames[field]} = ${count}`);
-                        return;
-                    }
-                }
-            }
-
-            // Fallback: look for row count anywhere on the page
+            // Try to find the record count
             const allText = document.body.innerText;
+
+            // Look for "X rows" pattern
             const rowMatch = allText.match(/(\d+)\s*rows?/i);
             if (rowMatch) {
-                const count = parseInt(rowMatch[1]);
-                const data = getCapturedData();
-                data[field] = count;
-                saveCapturedData(data);
-                const fieldNames = {
-                    creditAutomation: 'Credit Automation',
-                    manualReviews: 'Manual Reviews',
-                    s360Update: 'S360 Update'
-                };
-                showNotification(`Queue Dashboard: ${fieldNames[field]} = ${count}`);
+                saveCapturedValue(field, parseInt(rowMatch[1]));
                 return;
             }
 
-            // Check if report shows "No data" 
-            if (allText.includes('No data') || allText.includes('no results')) {
-                const data = getCapturedData();
-                data[field] = 0;
-                saveCapturedData(data);
-                const fieldNames = {
-                    creditAutomation: 'Credit Automation',
-                    manualReviews: 'Manual Reviews',
-                    s360Update: 'S360 Update'
-                };
-                showNotification(`Queue Dashboard: ${fieldNames[field]} = 0 (no data)`);
+            // Look for "Grand Totals (X records)"
+            const recordMatch = allText.match(/(\d+)\s*records?/i);
+            if (recordMatch) {
+                saveCapturedValue(field, parseInt(recordMatch[1]));
                 return;
             }
 
-            console.log('[Queue Dashboard] Could not find report count for:', field);
-        }, 8000); // Salesforce takes longer to load
+            // Look for count in report header
+            const headerMatch = allText.match(/(\d+)\s*items?/i);
+            if (headerMatch) {
+                saveCapturedValue(field, parseInt(headerMatch[1]));
+                return;
+            }
+
+            // Check if "No data" is shown
+            if (allText.includes('No data') || allText.includes('no results') ||
+                allText.includes('No records')) {
+                saveCapturedValue(field, 0);
+                return;
+            }
+
+            // Count table rows as fallback
+            const tableRows = document.querySelectorAll('table tbody tr, .slds-table tbody tr');
+            if (tableRows.length > 0) {
+                saveCapturedValue(field, tableRows.length);
+                return;
+            }
+
+            showNotification(`Could not find count for ${field}. Try refreshing.`, true);
+        }, 10000); // Salesforce needs more time to load
     }
 
     // ========== ROUTE TO CORRECT HANDLER ==========

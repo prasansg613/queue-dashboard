@@ -11,7 +11,8 @@
         <header>
             <h1>Queue Dashboard</h1>
             <p class="subtitle">Daily Team Queue Tracker</p>
-            <p class="last-updated" id="last-updated">Last updated: --</p>
+            <p class="last-updated" id="last-updated">Last refreshed: --</p>
+            <button class="btn-refresh" id="btn-refresh" onclick="loadDataFromGitHub()">&#x21bb; Refresh</button>
         </header>
 
         <!-- Today's Summary Cards -->
@@ -124,13 +125,13 @@
                             <th>Manual Reviews</th>
                             <th>S360 Update</th>
                             <th>Total</th>
-                            <th>Actions</th>
+                            <th>Updated By</th>
                         </tr>
                     </thead>
                     <tbody id="history-body">
                     </tbody>
                 </table>
-                <p class="empty-state" id="empty-state">No data entries yet. Install the Tampermonkey userscript or use manual entry above.</p>
+                <p class="empty-state" id="empty-state">No data entries yet. Install the Tampermonkey userscript to auto-capture data.</p>
             </div>
         </section>
     </div>

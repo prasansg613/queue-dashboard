@@ -1,7 +1,11 @@
 // Queue Dashboard - Main Application Logic
-// Data is stored in localStorage and synced via Tampermonkey userscript
+// Data is fetched from GitHub repo (data.json)
 
-const STORAGE_KEY = 'queueDashboardData';
+const GITHUB_OWNER = 'prasansg613';
+const GITHUB_REPO = 'queue-dashboard';
+const DATA_FILE = 'data.json';
+const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}`;
+const RAW_DATA_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${DATA_FILE}`;
 
 // DOM Elements
 const form = document.getElementById('queue-form');
@@ -28,8 +32,7 @@ const displayS360 = document.getElementById('display-s360-update');
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setDefaultDate();
-    loadAndRender();
-    checkForUserscriptData();
+    loadDataFromGitHub();
 });
 
 // Toggle form visibility
@@ -44,78 +47,26 @@ function setDefaultDate() {
     entryDateInput.value = today;
 }
 
-// Get data from localStorage
-function getData() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-}
-
-// Save data to localStorage
-function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-// Check for data pushed by Tampermonkey userscript
-function checkForUserscriptData() {
-    const userscriptData = localStorage.getItem('queueDashboard_autoCapture');
-    if (userscriptData) {
-        try {
-            const captured = JSON.parse(userscriptData);
-            const today = new Date().toISOString().split('T')[0];
-
-            // Only process if captured today
-            if (captured.date === today) {
-                const data = getData();
-                const existingIndex = data.findIndex(d => d.date === today);
-
-                const entry = {
-                    date: today,
-                    pendingApproval: captured.pendingApproval || 0,
-                    sim: captured.sim || 0,
-                    creditAutomation: captured.creditAutomation || 0,
-                    manualReviews: captured.manualReviews || 0,
-                    s360Update: captured.s360Update || 0
-                };
-
-                if (existingIndex !== -1) {
-                    // Merge: only update fields that have new data
-                    const existing = data[existingIndex];
-                    entry.pendingApproval = captured.pendingApproval || existing.pendingApproval || 0;
-                    entry.sim = captured.sim || existing.sim || 0;
-                    entry.creditAutomation = captured.creditAutomation || existing.creditAutomation || 0;
-                    entry.manualReviews = captured.manualReviews || existing.manualReviews || 0;
-                    entry.s360Update = captured.s360Update || existing.s360Update || 0;
-                    data[existingIndex] = entry;
-                } else {
-                    data.push(entry);
-                }
-
-                saveData(data);
-                loadAndRender();
-
-                // Update last updated time
-                if (captured.timestamp) {
-                    lastUpdatedEl.textContent = `Last auto-updated: ${new Date(captured.timestamp).toLocaleString()}`;
-                }
-            }
-        } catch (e) {
-            console.error('Error processing userscript data:', e);
+// Fetch data from GitHub
+async function loadDataFromGitHub() {
+    try {
+        // Add cache-busting parameter
+        const response = await fetch(RAW_DATA_URL + '?t=' + Date.now());
+        if (response.ok) {
+            const data = await response.json();
+            renderCards(data);
+            renderTable(data);
+            lastUpdatedEl.textContent = `Last refreshed: ${new Date().toLocaleString()}`;
+        } else {
+            console.error('Failed to fetch data:', response.status);
+            renderCards([]);
+            renderTable([]);
         }
+    } catch (error) {
+        console.error('Error loading data:', error);
+        renderCards([]);
+        renderTable([]);
     }
-}
-
-// Listen for storage events (when userscript updates data in another tab)
-window.addEventListener('storage', (e) => {
-    if (e.key === 'queueDashboard_autoCapture') {
-        checkForUserscriptData();
-    }
-});
-
-// Load data and render all views
-function loadAndRender() {
-    const data = getData();
-    renderCards(data);
-    renderTable(data);
 }
 
 // Update summary cards with today's data (or most recent)
@@ -130,11 +81,11 @@ function renderCards(data) {
     }
 
     if (displayEntry) {
-        displayPending.textContent = displayEntry.pendingApproval;
-        displaySim.textContent = displayEntry.sim;
-        displayAutomation.textContent = displayEntry.creditAutomation;
-        displayManual.textContent = displayEntry.manualReviews;
-        displayS360.textContent = displayEntry.s360Update;
+        displayPending.textContent = displayEntry.pendingApproval || 0;
+        displaySim.textContent = displayEntry.sim || 0;
+        displayAutomation.textContent = displayEntry.creditAutomation || 0;
+        displayManual.textContent = displayEntry.manualReviews || 0;
+        displayS360.textContent = displayEntry.s360Update || 0;
     } else {
         displayPending.textContent = '--';
         displaySim.textContent = '--';
@@ -174,17 +125,9 @@ function renderTable(data) {
             <td>${entry.manualReviews || 0}</td>
             <td>${entry.s360Update || 0}</td>
             <td><strong>${total}</strong></td>
-            <td><button class="btn-delete" data-date="${entry.date}">Delete</button></td>
+            <td>${entry.updatedBy || '--'}</td>
         `;
         historyBody.appendChild(row);
-    });
-
-    // Add delete event listeners
-    document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const date = e.target.getAttribute('data-date');
-            deleteEntry(date);
-        });
     });
 }
 
@@ -199,9 +142,10 @@ function formatDate(dateStr) {
     });
 }
 
-// Handle form submission
-form.addEventListener('submit', (e) => {
+// Handle form submission (manual entry)
+form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    showToast('Saving... please wait');
 
     const entry = {
         date: entryDateInput.value,
@@ -209,35 +153,39 @@ form.addEventListener('submit', (e) => {
         sim: parseInt(simInput.value) || 0,
         creditAutomation: parseInt(creditAutomationInput.value) || 0,
         manualReviews: parseInt(manualReviewsInput.value) || 0,
-        s360Update: parseInt(s360UpdateInput.value) || 0
+        s360Update: parseInt(s360UpdateInput.value) || 0,
+        updatedBy: 'manual',
+        timestamp: new Date().toISOString()
     };
 
-    const data = getData();
-    const existingIndex = data.findIndex(d => d.date === entry.date);
+    try {
+        // Fetch current data
+        const response = await fetch(RAW_DATA_URL + '?t=' + Date.now());
+        let data = [];
+        if (response.ok) {
+            data = await response.json();
+        }
 
-    if (existingIndex !== -1) {
-        data[existingIndex] = entry;
-        showToast('Entry updated successfully!');
-    } else {
-        data.push(entry);
-        showToast('Entry saved successfully!');
+        // Update or add entry
+        const existingIndex = data.findIndex(d => d.date === entry.date);
+        if (existingIndex !== -1) {
+            data[existingIndex] = entry;
+        } else {
+            data.push(entry);
+        }
+
+        // Note: Manual form can't push to GitHub without token
+        // Save locally and show message
+        localStorage.setItem('queueDashboardLocal', JSON.stringify(data));
+        renderCards(data);
+        renderTable(data);
+        resetForm();
+        showToast('Entry saved locally. Use the userscript for auto-sync to GitHub.');
+    } catch (error) {
+        console.error('Error saving:', error);
+        showToast('Error saving data.');
     }
-
-    saveData(data);
-    loadAndRender();
-    resetForm();
 });
-
-// Delete an entry
-function deleteEntry(date) {
-    if (!confirm('Are you sure you want to delete this entry?')) return;
-
-    const data = getData();
-    const filtered = data.filter(entry => entry.date !== date);
-    saveData(filtered);
-    loadAndRender();
-    showToast('Entry deleted.');
-}
 
 // Reset form
 function resetForm() {
@@ -253,38 +201,48 @@ function resetForm() {
 btnClearForm.addEventListener('click', resetForm);
 
 // Export to CSV
-btnExport.addEventListener('click', () => {
-    const data = getData();
-    if (data.length === 0) {
-        showToast('No data to export.');
-        return;
+btnExport.addEventListener('click', async () => {
+    try {
+        const response = await fetch(RAW_DATA_URL + '?t=' + Date.now());
+        const data = await response.json();
+
+        if (data.length === 0) {
+            showToast('No data to export.');
+            return;
+        }
+
+        const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const headers = ['Date', 'Pending Approval', 'SIM', 'Credit Automation - Comments',
+                         'Credit Check Manual Reviews', 'Credit Check - S360 Update', 'Total', 'Updated By'];
+
+        const rows = sorted.map(entry => {
+            const total = (entry.pendingApproval || 0) + (entry.sim || 0) +
+                          (entry.creditAutomation || 0) + (entry.manualReviews || 0) +
+                          (entry.s360Update || 0);
+            return [entry.date, entry.pendingApproval || 0, entry.sim || 0,
+                    entry.creditAutomation || 0, entry.manualReviews || 0,
+                    entry.s360Update || 0, total, entry.updatedBy || ''].join(',');
+        });
+
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `queue-dashboard-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('CSV exported!');
+    } catch (error) {
+        showToast('Error exporting data.');
     }
-
-    const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    const headers = ['Date', 'Pending Approval', 'SIM', 'Credit Automation - Comments',
-                     'Credit Check Manual Reviews', 'Credit Check - S360 Update', 'Total'];
-
-    const rows = sorted.map(entry => {
-        const total = (entry.pendingApproval || 0) + (entry.sim || 0) +
-                      (entry.creditAutomation || 0) + (entry.manualReviews || 0) +
-                      (entry.s360Update || 0);
-        return [entry.date, entry.pendingApproval, entry.sim, entry.creditAutomation,
-                entry.manualReviews, entry.s360Update, total].join(',');
-    });
-
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `queue-dashboard-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    showToast('CSV exported!');
 });
+
+// Auto-refresh every 5 minutes
+setInterval(loadDataFromGitHub, 5 * 60 * 1000);
 
 // Toast notification
 function showToast(message) {

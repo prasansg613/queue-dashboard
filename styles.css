@@ -43,6 +43,23 @@ header .last-updated {
     margin-top: 0.5rem;
 }
 
+.btn-refresh {
+    margin-top: 0.75rem;
+    padding: 0.5rem 1.2rem;
+    background: #4ecdc4;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.btn-refresh:hover {
+    background: #3dbdb5;
+}
+
 /* Section Headings */
 section h2 {
     font-size: 1.25rem;
