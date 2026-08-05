@@ -79,6 +79,11 @@ section h2 {
     gap: 1rem;
 }
 
+.card-link {
+    text-decoration: none;
+    color: inherit;
+}
+
 .card {
     background: #fff;
     border-radius: 12px;
@@ -89,6 +94,7 @@ section h2 {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     border-left: 4px solid transparent;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
 .card:hover {

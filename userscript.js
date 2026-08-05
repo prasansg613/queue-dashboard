@@ -286,24 +286,32 @@
             // Try to find the record count
             const allText = document.body.innerText;
 
+            // Look for "Total Records" or "Total Records: 282" pattern (shown in report header)
+            const totalRecordsMatch = allText.match(/Total\s*Records[:\s]*(\d[\d,]*)/i);
+            if (totalRecordsMatch) {
+                const count = parseInt(totalRecordsMatch[1].replace(/,/g, ''));
+                saveCapturedValue(field, count);
+                return;
+            }
+
             // Look for "X rows" pattern
-            const rowMatch = allText.match(/(\d+)\s*rows?/i);
+            const rowMatch = allText.match(/(\d[\d,]*)\s*rows?/i);
             if (rowMatch) {
-                saveCapturedValue(field, parseInt(rowMatch[1]));
+                saveCapturedValue(field, parseInt(rowMatch[1].replace(/,/g, '')));
                 return;
             }
 
-            // Look for "Grand Totals (X records)"
-            const recordMatch = allText.match(/(\d+)\s*records?/i);
+            // Look for "Grand Totals (X records)" or "X records"
+            const recordMatch = allText.match(/(\d[\d,]*)\s*records?/i);
             if (recordMatch) {
-                saveCapturedValue(field, parseInt(recordMatch[1]));
+                saveCapturedValue(field, parseInt(recordMatch[1].replace(/,/g, '')));
                 return;
             }
 
-            // Look for count in report header
-            const headerMatch = allText.match(/(\d+)\s*items?/i);
+            // Look for count in report header like "X items"
+            const headerMatch = allText.match(/(\d[\d,]*)\s*items?/i);
             if (headerMatch) {
-                saveCapturedValue(field, parseInt(headerMatch[1]));
+                saveCapturedValue(field, parseInt(headerMatch[1].replace(/,/g, '')));
                 return;
             }
 
