@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Queue Dashboard</h1>
+            <p class="subtitle">Daily Team Queue Tracker</p>
+            <p class="last-updated" id="last-updated">Last updated: --</p>
+        </header>
+
+        <!-- Today's Summary Cards -->
+        <section class="summary-section">
+            <h2>Today's Queue Status</h2>
+            <div class="cards-grid">
+                <div class="card card-pending">
+                    <div class="card-icon">&#128203;</div>
+                    <div class="card-content">
+                        <h3>Pending Approval</h3>
+                        <p class="card-value" id="display-pending-approval">--</p>
+                        <p class="card-source">approvals.amazon.com</p>
+                    </div>
+                </div>
+                <div class="card card-sim">
+                    <div class="card-icon">&#128225;</div>
+                    <div class="card-content">
+                        <h3>SIM</h3>
+                        <p class="card-value" id="display-sim">--</p>
+                        <p class="card-source">sim.amazon.com</p>
+                    </div>
+                </div>
+                <div class="card card-automation">
+                    <div class="card-icon">&#9881;</div>
+                    <div class="card-content">
+                        <h3>Credit Automation - Comments</h3>
+                        <p class="card-value" id="display-credit-automation">--</p>
+                        <p class="card-source">Salesforce Report</p>
+                    </div>
+                </div>
+                <div class="card card-manual">
+                    <div class="card-icon">&#128269;</div>
+                    <div class="card-content">
+                        <h3>Credit Check Manual Reviews</h3>
+                        <p class="card-value" id="display-manual-reviews">--</p>
+                        <p class="card-source">Salesforce Report</p>
+                    </div>
+                </div>
+                <div class="card card-s360">
+                    <div class="card-icon">&#128260;</div>
+                    <div class="card-content">
+                        <h3>Credit Check - S360 Update</h3>
+                        <p class="card-value" id="display-s360-update">--</p>
+                        <p class="card-source">Salesforce Report</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Manual Entry Form (backup) -->
+        <section class="entry-section">
+            <div class="section-header-toggle">
+                <h2>Manual Data Entry</h2>
+                <button class="btn-toggle" id="btn-toggle-form">Show Form</button>
+            </div>
+            <form id="queue-form" class="hidden">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="entry-date">Date</label>
+                        <input type="date" id="entry-date" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="pending-approval">Pending Approval</label>
+                        <input type="number" id="pending-approval" min="0" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sim">SIM</label>
+                        <input type="number" id="sim" min="0" placeholder="0" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="credit-automation">Credit Automation - Comments</label>
+                        <input type="number" id="credit-automation" min="0" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="manual-reviews">Credit Check Manual Reviews</label>
+                        <input type="number" id="manual-reviews" min="0" placeholder="0" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="s360-update">Credit Check - S360 Update</label>
+                        <input type="number" id="s360-update" min="0" placeholder="0" required>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">Save Entry</button>
+                    <button type="button" class="btn-clear" id="btn-clear-form">Clear</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Historical Data Table -->
+        <section class="history-section">
+            <div class="history-header">
+                <h2>Historical Data</h2>
+                <button class="btn-export" id="btn-export">Export CSV</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Pending Approval</th>
+                            <th>SIM</th>
+                            <th>Credit Automation</th>
+                            <th>Manual Reviews</th>
+                            <th>S360 Update</th>
+                            <th>Total</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                    </tbody>
+                </table>
+                <p class="empty-state" id="empty-state">No data entries yet. Install the Tampermonkey userscript or use manual entry above.</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
