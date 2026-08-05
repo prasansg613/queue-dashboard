@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "date": "2026-08-05",
+    "pendingApproval": 4,
+    "sim": 12,
+    "creditAutomation": 3,
+    "manualReviews": 7,
+    "s360Update": 5,
+    "updatedBy": "test",
+    "timestamp": "2026-08-05T10:00:00.000Z"
+  }
+]
