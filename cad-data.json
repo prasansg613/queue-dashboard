@@ -1,17 +1,9 @@
-[
-  {
-    "date": "2026-08-07",
-    "queues": {
-      "appeals": 30,
-      "applications": 1,
-      "creditUtilSpendVelocity": 4,
-      "customerDelinquency": 100,
-      "customerRepayment": 11,
-      "invoiceRejection": 1,
-      "mle": 2,
-      "recentPayer": 100,
-      "statusChange": 29
-    },
-    "timestamp": "2026-08-07T09:26:47.322Z"
-  }
-]
+{
+    "date":  "2026-08-06",
+    "timestamp":  "2026-08-07T14:57:43.8457043+05:30",
+    "queues":  {
+                   "nonPayer":  0,
+                   "paymentFailed":  0,
+                   "appeals":  4
+               }
+}
