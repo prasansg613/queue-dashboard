@@ -106,8 +106,8 @@
     <script>
         const GITHUB_OWNER = 'prasansg613';
         const GITHUB_REPO = 'queue-dashboard';
-        const RAW_URL = \https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/cad-data.json\`;`
-        const MONITORING = [
+      const RAW_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/cad-data.json`;
+      const MONITORING = [
             { key: 'paymentFailed', name: 'Payment Failed' },
             { key: 'nonPayer', name: 'Non Payer' },
             { key: 'paymentReversal', name: 'Payment Reversal' },
@@ -146,9 +146,11 @@
 
         async function loadData() {
             try {
-                const response = await fetch(RAW_URL + '?t=' + Date.now());
-                if (!response.ok) throw new Error('Not found');
-                const allData = await response.json();
+                const response = await fetch(RAW_URL, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+if (!response.ok) throw new Error('Not found');
+const fileInfo = await response.json();
+const allData = JSON.parse(atob(fileInfo.content));
+
 
                 // Get today's or most recent entry
                 const today = new Date().toISOString().split('T')[0];
