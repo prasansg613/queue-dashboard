@@ -147,9 +147,9 @@
         async function loadData() {
             try {
                 const response = await fetch(RAW_URL, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-if (!response.ok) throw new Error('Not found');
-const fileInfo = await response.json();
-const allData = JSON.parse(atob(fileInfo.content));
+                if (!response.ok) throw new Error('Not found');
+                const fileInfo = await response.json();
+                const allData = JSON.parse(atob(fileInfo.content));
 
 
                 // Get today's or most recent entry
