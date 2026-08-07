@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "date": "2026-08-07",
+    "queues": {
+      "appeals": 30,
+      "applications": 1,
+      "creditUtilSpendVelocity": 4,
+      "customerDelinquency": 100,
+      "customerRepayment": 11,
+      "invoiceRejection": 1,
+      "mle": 2,
+      "recentPayer": 100,
+      "statusChange": 29
+    },
+    "timestamp": "2026-08-07T09:25:59.317Z"
+  }
+]
