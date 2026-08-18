@@ -85,8 +85,8 @@
     "sim": 260,
     "creditAutomation": 1,
     "manualReviews": 1,
-    "s360Update": 264,
-    "updatedBy": "chrome-extension",
-    "timestamp": "2026-08-18T12:55:49.392Z"
+    "s360Update": 0,
+    "updatedBy": "userscript",
+    "timestamp": "2026-08-18T12:56:01.566Z"
   }
 ]
