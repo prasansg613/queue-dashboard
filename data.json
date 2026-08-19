@@ -91,12 +91,12 @@
   },
   {
     "date": "2026-08-19",
-    "pendingApproval": 5,
+    "pendingApproval": 3,
     "sim": 261,
     "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 0,
-    "updatedBy": "chrome-extension",
-    "timestamp": "2026-08-19T08:50:52.403Z"
+    "updatedBy": "userscript",
+    "timestamp": "2026-08-19T09:20:42.630Z"
   }
 ]
