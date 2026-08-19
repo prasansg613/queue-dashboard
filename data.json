@@ -91,12 +91,12 @@
   },
   {
     "date": "2026-08-19",
-    "pendingApproval": 3,
+    "pendingApproval": 5,
     "sim": 262,
     "creditAutomation": 2,
     "manualReviews": 1,
     "s360Update": 241,
     "updatedBy": "userscript",
-    "timestamp": "2026-08-19T14:30:07.600Z"
+    "timestamp": "2026-08-19T16:00:53.775Z"
   }
 ]
