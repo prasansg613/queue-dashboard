@@ -106,7 +106,7 @@
     "creditAutomation": 1,
     "manualReviews": 2,
     "s360Update": 225,
-    "updatedBy": "chrome-extension",
-    "timestamp": "2026-08-20T10:17:16.806Z"
+    "updatedBy": "userscript",
+    "timestamp": "2026-08-20T10:17:21.978Z"
   }
 ]
