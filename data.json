@@ -173,10 +173,10 @@
     "date": "2026-08-31",
     "pendingApproval": 0,
     "sim": 266,
-    "creditAutomation": 0,
+    "creditAutomation": 1,
     "manualReviews": 0,
     "s360Update": 0,
     "updatedBy": "userscript",
-    "timestamp": "2026-08-31T08:48:28.465Z"
+    "timestamp": "2026-08-31T08:48:40.309Z"
   }
 ]
