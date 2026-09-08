@@ -232,11 +232,11 @@
   {
     "date": "2026-09-08",
     "pendingApproval": 2,
-    "sim": 0,
+    "sim": 276,
     "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 0,
-    "updatedBy": "userscript",
-    "timestamp": "2026-09-08T08:05:58.322Z"
+    "updatedBy": "chrome-extension",
+    "timestamp": "2026-09-08T08:06:02.342Z"
   }
 ]
