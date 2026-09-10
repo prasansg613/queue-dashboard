@@ -254,9 +254,9 @@
     "pendingApproval": 0,
     "sim": 280,
     "creditAutomation": 2,
-    "manualReviews": 2,
+    "manualReviews": 0,
     "s360Update": 155,
     "updatedBy": "userscript",
-    "timestamp": "2026-09-10T15:05:26.639Z"
+    "timestamp": "2026-09-10T15:34:50.453Z"
   }
 ]
