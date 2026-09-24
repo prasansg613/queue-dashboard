@@ -303,10 +303,10 @@
     "date": "2026-09-24",
     "pendingApproval": 0,
     "sim": 300,
-    "creditAutomation": 2,
+    "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 85,
     "updatedBy": "userscript",
-    "timestamp": "2026-09-24T11:33:34.674Z"
+    "timestamp": "2026-09-24T11:33:44.570Z"
   }
 ]
