@@ -301,12 +301,12 @@
   },
   {
     "date": "2026-09-24",
-    "pendingApproval": 1,
+    "pendingApproval": 0,
     "sim": 302,
     "creditAutomation": 2,
     "manualReviews": 0,
     "s360Update": 85,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-09-24T11:03:43.623Z"
+    "timestamp": "2026-09-24T11:33:30.876Z"
   }
 ]
