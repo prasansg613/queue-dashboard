@@ -323,10 +323,10 @@
     "date": "2026-09-29",
     "pendingApproval": 1,
     "sim": 302,
-    "creditAutomation": 1,
+    "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 72,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-09-29T13:23:37.563Z"
+    "timestamp": "2026-09-29T13:23:44.803Z"
   }
 ]
