@@ -334,9 +334,9 @@
     "pendingApproval": 1,
     "sim": 303,
     "creditAutomation": 2,
-    "manualReviews": 0,
+    "manualReviews": 2,
     "s360Update": 61,
-    "updatedBy": "userscript",
-    "timestamp": "2026-09-30T11:12:09.669Z"
+    "updatedBy": "chrome-extension",
+    "timestamp": "2026-09-30T11:12:25.667Z"
   }
 ]
