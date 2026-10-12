@@ -401,12 +401,12 @@
   },
   {
     "date": "2026-10-12",
-    "pendingApproval": 8,
+    "pendingApproval": 7,
     "sim": 0,
     "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 0,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-10-12T09:25:54.598Z"
+    "timestamp": "2026-10-12T09:55:46.289Z"
   }
 ]
