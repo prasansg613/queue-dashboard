@@ -502,11 +502,11 @@
   {
     "date": "2026-10-29",
     "pendingApproval": 2,
-    "sim": 0,
+    "sim": 334,
     "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 0,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-10-29T07:29:43.243Z"
+    "timestamp": "2026-10-29T07:29:56.527Z"
   }
 ]
