@@ -591,12 +591,12 @@
   },
   {
     "date": "2026-11-12",
-    "pendingApproval": 9,
+    "pendingApproval": 8,
     "sim": 347,
     "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 0,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-11-12T09:53:47.921Z"
+    "timestamp": "2026-11-12T10:13:19.437Z"
   }
 ]
