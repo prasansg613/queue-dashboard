@@ -602,11 +602,11 @@
   {
     "date": "2026-11-13",
     "pendingApproval": 10,
-    "sim": 0,
+    "sim": 350,
     "creditAutomation": 0,
     "manualReviews": 0,
     "s360Update": 0,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-11-13T07:46:46.889Z"
+    "timestamp": "2026-11-13T07:46:50.601Z"
   }
 ]
