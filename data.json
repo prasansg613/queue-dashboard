@@ -663,10 +663,10 @@
     "date": "2026-11-23",
     "pendingApproval": 2,
     "sim": 365,
-    "creditAutomation": 2,
+    "creditAutomation": 1,
     "manualReviews": 4,
     "s360Update": 47,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-11-23T16:50:34.031Z"
+    "timestamp": "2026-11-23T16:50:39.965Z"
   }
 ]
