@@ -661,12 +661,12 @@
   },
   {
     "date": "2026-11-23",
-    "pendingApproval": 2,
+    "pendingApproval": 1,
     "sim": 364,
     "creditAutomation": 5,
     "manualReviews": 4,
     "s360Update": 0,
     "updatedBy": "chrome-extension",
-    "timestamp": "2026-11-23T10:58:42.516Z"
+    "timestamp": "2026-11-23T11:28:53.174Z"
   }
 ]
